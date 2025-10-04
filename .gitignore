@@ -1,0 +1,8 @@
+/EEGART
+/GiT
+__pycache__/
+*.log
+*.pth
+*.csv
+*.xlsx
+.env
