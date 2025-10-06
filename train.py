@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import argparse
-import os
+import json
 
 from torch.utils.data import DataLoader
 
@@ -11,13 +11,10 @@ from train import Trainer, build_noam_from_config, LossComputer, MetricsComputer
 from model import build_model_from_config
 
 
-def load_yaml(path: str) -> dict:
-    try:
-        import yaml  # type: ignore
-    except Exception as e:
-        raise ImportError("PyYAML is required to load YAML configs. Install with `pip install pyyaml`.") from e
+def load_config(path: str) -> dict:
+    """Loads a JSON configuration file."""
     with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+        return json.load(f)
 
 
 def build_loaders(cfg: dict, seed: int | None) -> tuple[DataLoader, DataLoader, DataLoader]:
@@ -65,14 +62,14 @@ def build_loaders(cfg: dict, seed: int | None) -> tuple[DataLoader, DataLoader, 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train ArtifactRemovalTransformer")
-    parser.add_argument("--config", default="./config.yaml", help="Path to YAML config")
+    parser.add_argument("--config", default="./config.json", help="Path to JSON config")
     parser.add_argument("--save-dir", default=None, help="Override save dir (read from config if not set)")
     parser.add_argument("--epochs", type=int, default=None, help="Override number of epochs from config")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for dataset generation/shuffling")
     args = parser.parse_args()
 
     # Load config once
-    cfg = load_yaml(args.config)
+    cfg = load_config(args.config)
 
     # Build loaders externally (flexible)
     train_loader, val_loader, test_loader = build_loaders(cfg=cfg, seed=args.seed)
