@@ -8,10 +8,6 @@ except ImportError:
     from ART_blocks import ExpandConv1x1, PositionalEmbedding, MultiHeadAttention, FeedForward
 
 class TransformerEncoderBlock(nn.Module):
-    """
-    No docstring provided.
-    """
-
     def __init__(self, d_model: int, num_heads: int, d_ff: int, dropout: float=0.0, attn_dropout: float=0.0) -> None:
         super().__init__()
         self.mha = MultiHeadAttention(d_model, num_heads, dropout=attn_dropout)
@@ -22,9 +18,6 @@ class TransformerEncoderBlock(nn.Module):
         self.ln2 = nn.LayerNorm(d_model, eps=1e-05)
 
     def forward(self, x: Tensor, attn_mask: Optional[Tensor]=None) -> Tensor:
-        """
-        No docstring provided.
-        """
         h = self.mha(x, x, x, attn_mask=attn_mask)
         x = self.ln1(x + self.drop1(h))
         h = self.ffn(x)
@@ -32,10 +25,6 @@ class TransformerEncoderBlock(nn.Module):
         return x
 
 class TransformerEncoder(nn.Module):
-    """
-    No docstring provided.
-    """
-
     def __init__(self, d_model: int, num_layers: int, num_heads: int, d_ff: int, dropout: float=0.0, attn_dropout: float=0.0) -> None:
         super().__init__()
         self.layers = nn.ModuleList([TransformerEncoderBlock(d_model=d_model, num_heads=num_heads, d_ff=d_ff, dropout=dropout, attn_dropout=attn_dropout) for _ in range(num_layers)])
@@ -43,7 +32,47 @@ class TransformerEncoder(nn.Module):
 
     def forward(self, x: Tensor, attn_mask: Optional[Tensor]=None) -> Tensor:
         """
-        No docstring provided.
+        Sequentially processes input tensor through multiple encoder layers with optional attention masking and final normalization.
+
+        Summary:
+        Transforms input representations by applying stacked encoder transformations and layer normalization.
+
+        Description:
+        WHY: Enables hierarchical feature extraction and contextual representation learning in transformer architectures.
+
+        WHEN: Used during model training and inference to process sequential input data through multiple transformation stages.
+
+        WHERE: Serves as the core forward pass mechanism in transformer encoder networks, facilitating complex representation learning.
+
+        HOW: Iteratively applies each transformer encoder block to the input, incorporating optional attention masking, and applies final layer normalization to stabilize output representations.
+
+        Args:
+            x (Tensor): Input tensor representing sequence embeddings to be transformed.
+            attn_mask (Optional[Tensor], optional): Mask tensor to prevent attending to certain positions. Defaults to None.
+
+        Returns:
+            Tensor: Transformed and normalized output tensor after passing through all encoder layers.
+
+        Examples:
+            ```python
+            # Typical usage in sequence processing
+            encoder = TransformerEncoder(
+                d_model=512, 
+                num_layers=6, 
+                num_heads=8, 
+                d_ff=2048
+            )
+
+            # Forward pass with optional masking
+            output = encoder(
+                x=input_sequence, 
+                attn_mask=padding_mask
+            )
+            ```
+
+        Warnings:
+            - Performance depends on input quality and encoder configuration
+            - Attention masking crucial for handling variable-length sequences
         """
         for layer in self.layers:
             x = layer(x, attn_mask=attn_mask)
@@ -51,7 +80,54 @@ class TransformerEncoder(nn.Module):
 
 class TransformerDecoderBlock(nn.Module):
     """
-    No docstring provided.
+    A fundamental building block for transformer decoder architectures, responsible for contextual feature transformation and cross-attention mechanisms.
+
+    Summary:
+    Implements a single transformer decoder layer with cross-attention, residual connections, and non-linear transformations.
+
+    Description:
+    WHY: Enables sophisticated sequence-to-sequence learning by dynamically integrating contextual information through cross-attention and non-linear feature refinement.
+
+    WHEN: Essential in neural machine translation, text generation, and sequence modeling tasks requiring complex representation learning.
+
+    WHERE: Serves as a core component in multi-layer transformer decoder networks, facilitating hierarchical information processing between encoder and decoder representations.
+
+    HOW: Sequentially applies multi-head cross-attention, residual connections, layer normalization, and feed-forward transformations to input embeddings.
+
+    Parameters:
+        d_model (int): Dimensionality of the model's feature space. Determines representation complexity.
+        num_heads (int): Number of attention heads for multi-head attention mechanism. Enables parallel contextual feature extraction.
+        d_ff (int): Dimensionality of the feed-forward network's hidden layer. Controls model's capacity for non-linear transformations.
+        dropout (float, optional): Regularization rate for dropout layers. Helps prevent overfitting. Defaults to 0.0.
+        attn_dropout (float, optional): Specific dropout rate for attention mechanisms. Defaults to 0.0.
+
+    Attributes:
+        ln1 (nn.LayerNorm): First layer normalization for stabilizing feature representations.
+        cross_mha (MultiHeadAttention): Multi-head cross-attention mechanism for contextual feature integration.
+        ffn (FeedForward): Non-linear feed-forward transformation network.
+        drop1, drop2 (nn.Dropout): Dropout layers for regularization.
+
+    Examples:
+        ```python
+        # Create a decoder block with specific hyperparameters
+        decoder_block = TransformerDecoderBlock(
+            d_model=512,      # Feature space dimensionality
+            num_heads=8,      # 8 parallel attention heads
+            d_ff=2048,        # Large feed-forward layer
+            dropout=0.1       # 10% dropout for regularization
+        )
+
+        # Typical forward pass in a sequence generation task
+        output = decoder_block(
+            x=decoder_input,       # Current decoder sequence
+            memory=encoder_output, # Encoder context
+            self_attn_mask=mask    # Optional attention masking
+        )
+        ```
+
+    Warnings:
+        - Requires careful hyperparameter tuning for optimal performance
+        - Performance depends on encoder-decoder context quality
     """
 
     def __init__(self, d_model: int, num_heads: int, d_ff: int, dropout: float=0.0, attn_dropout: float=0.0) -> None:
@@ -111,7 +187,54 @@ class TransformerDecoderBlock(nn.Module):
 
 class TransformerDecoder(nn.Module):
     """
-    No docstring provided.
+    Stacked transformer decoder architecture for hierarchical sequence representation and generation.
+
+    Summary:
+    Multi-layer neural network component for advanced contextual feature transformation in sequence-to-sequence models.
+
+    Description:
+    WHY: Enables complex, hierarchical representation learning by progressively refining input sequences through multiple decoder layers with cross-attention mechanisms.
+
+    WHEN: Critical for advanced natural language processing, machine translation, text generation, and sequence modeling tasks requiring sophisticated contextual understanding.
+
+    WHERE: Serves as a core architectural component in transformer-based neural networks, bridging encoder representations with target sequence generation.
+
+    HOW: Sequentially processes input through multiple transformer decoder blocks, applying cross-attention, non-linear transformations, and layer normalization to progressively extract and refine contextual features.
+
+    Parameters:
+        d_model (int): Dimensionality of the model's feature representation space. Controls representation complexity and information capacity.
+        num_layers (int): Number of stacked transformer decoder layers. Determines network depth and representational power.
+        num_heads (int): Number of parallel attention heads in each decoder block. Enables multi-perspective feature extraction.
+        d_ff (int): Dimensionality of feed-forward network's hidden layer. Controls non-linear transformation capacity.
+        dropout (float, optional): Regularization rate applied across decoder layers. Helps prevent overfitting. Defaults to 0.0.
+        attn_dropout (float, optional): Specific dropout rate for attention mechanisms. Defaults to 0.0.
+
+    Attributes:
+        layers (nn.ModuleList): Sequence of transformer decoder blocks, each performing contextual feature transformation.
+        norm (nn.LayerNorm): Final layer normalization to stabilize output representations.
+
+    Examples:
+        ```python
+        # Initialize decoder for machine translation
+        decoder = TransformerDecoder(
+            d_model=512,        # Feature space dimensionality
+            num_layers=6,       # 6 stacked decoder layers
+            num_heads=8,        # 8 attention heads per layer
+            d_ff=2048,          # Large feed-forward layers
+            dropout=0.1         # 10% dropout for regularization
+        )
+
+        # Typical forward pass in sequence generation
+        output = decoder(
+            x=target_sequence_embeddings,  # Input sequence
+            memory=encoder_context,        # Encoder representations
+            self_attn_mask=generation_mask # Optional attention masking
+        )
+        ```
+
+    Warnings:
+        - Performance highly dependent on encoder quality and hyperparameter tuning
+        - Computational complexity increases with number of layers and model dimensionality
     """
 
     def __init__(self, d_model: int, num_layers: int, num_heads: int, d_ff: int, dropout: float=0.0, attn_dropout: float=0.0) -> None:
@@ -268,10 +391,6 @@ class Reconstructor(nn.Module):
         return (y - mean) / (std + self.eps)
 
 class ArtifactRemovalTransformer(nn.Module):
-    """
-    No docstring provided.
-    """
-
     def __init__(self, in_channels: int, out_channels: int, embedding_size: int=128, num_encoder_layers: int=6, num_decoder_layers: int=6, num_heads: int=8, feedforward_size: int=2048, dropout: float=0.1, max_len: int=2048, pos_mode: str='sinusoidal', recon_log_softmax: bool=False, recon_zscore: str | None=None) -> None:
         super().__init__()
         self.embedding = nn.Sequential(ExpandConv1x1(in_channels, embedding_size), PositionalEmbedding(max_len=max_len, d_model=embedding_size, mode=pos_mode), nn.Dropout(dropout))
@@ -280,9 +399,6 @@ class ArtifactRemovalTransformer(nn.Module):
         self.reconstructor = Reconstructor(d_model=embedding_size, out_channels=out_channels, log_softmax=recon_log_softmax, zscore=recon_zscore)
 
     def forward(self, src: Tensor, tgt: Optional[Tensor]=None, src_mask: Optional[Tensor]=None, tgt_mask: Optional[Tensor]=None) -> Tensor:
-        """
-        No docstring provided.
-        """
         enc_attn_mask = None
         if src_mask is not None:
             if src_mask.dtype != torch.bool:
@@ -301,9 +417,6 @@ class ArtifactRemovalTransformer(nn.Module):
         return self.reconstructor(out)
 
 def build_model_from_config(cfg: dict) -> ArtifactRemovalTransformer:
-    """
-    No docstring provided.
-    """
     m = cfg.get('model', cfg) if isinstance(cfg, dict) else {}
     in_channels = int(m.get('in_channels', 30))
     out_channels = int(m.get('out_channels', 30))
@@ -319,7 +432,14 @@ def build_model_from_config(cfg: dict) -> ArtifactRemovalTransformer:
     recon_log_softmax = bool(m.get('recon_log_softmax', False))
     recon_zscore = m.get('recon_zscore', None)
     return ArtifactRemovalTransformer(in_channels=in_channels, out_channels=out_channels, embedding_size=embedding_size, feedforward_size=feedforward_size, num_encoder_layers=num_encoder_layers, num_decoder_layers=num_decoder_layers, num_heads=num_heads, dropout=dropout, max_len=max_len, pos_mode=pos_mode, recon_log_softmax=recon_log_softmax, recon_zscore=recon_zscore)
-__all__ = ['ArtifactRemovalTransformer', 'build_model_from_config']
+
+
+__all__ = [
+    'ArtifactRemovalTransformer', 
+    'build_model_from_config'
+]
+
+
 if __name__ == '__main__':
 
     def export_default_onnx(out_path: str='ArtifactRemovalTransformer.onnx') -> None:

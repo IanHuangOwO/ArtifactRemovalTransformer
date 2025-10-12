@@ -1,21 +1,14 @@
 from dataclasses import dataclass
 from typing import Dict, Optional
 import torch
-import torch.nn as nn
 from train.metrics import mse as metric_mse, mae as metric_mae
 
 def _to_btC(t: torch.Tensor) -> torch.Tensor:
-    """
-    No docstring provided.
-    """
     if t.dim() == 3 and t.size(1) < t.size(2):
         return t.permute(0, 2, 1)
     return t
 
 def _masked_mean(x: torch.Tensor, mask: Optional[torch.Tensor]) -> torch.Tensor:
-    """
-    No docstring provided.
-    """
     if mask is None:
         return x.mean()
     m = mask.unsqueeze(-1).expand_as(x)
@@ -24,27 +17,17 @@ def _masked_mean(x: torch.Tensor, mask: Optional[torch.Tensor]) -> torch.Tensor:
 
 @dataclass
 class LossResult:
-    """
-    No docstring provided.
-    """
     loss: torch.Tensor
     logs: Dict[str, float]
     norm: int
 
 class LossComputer:
-    """
-    No docstring provided.
-    """
-
     def __init__(self, kind: str, zscore: bool) -> None:
         self.kind = kind
         self.zscore = zscore
         self.eps = 1e-10
 
     def __call__(self, out: torch.Tensor, *, target: torch.Tensor, keep_mask: Optional[torch.Tensor]) -> LossResult:
-        """
-        No docstring provided.
-        """
         y = _to_btC(target)
         x = _to_btC(out)
         if self.zscore:
@@ -66,9 +49,6 @@ class LossComputer:
         return LossResult(main, logs, norm)
 
 def build_loss_from_config(cfg: dict) -> LossComputer:
-    """
-    Builds a LossComputer from a configuration dictionary.
-    """
     train_cfg = cfg.get('train', {}) if isinstance(cfg, dict) else {}
     loss_cfg = train_cfg.get('loss', {}) if isinstance(train_cfg, dict) else {}
     

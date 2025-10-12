@@ -189,26 +189,21 @@ class EEGDataset(Dataset):
     ```
     """
 
-    def __init__(self, *, config: Dict, mode: str='train', transform: Optional[Callable[[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]]]=None, target_transform: Optional[Callable[[torch.Tensor], torch.Tensor]]=None, seed: Optional[int]=None) -> None:
+    def __init__(self, *, root: str, mode: str = 'train', files: Optional[List[str]] = None, transform: Optional[Callable[[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]]] = None, target_transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None, seed: Optional[int] = None) -> None:
         super().__init__()
-        cfg = config
-        data_cfg = cfg.get('data', cfg)
-        root = data_cfg.get('root')
-        if not root:
-            raise ValueError('Config must specify data.root')
         self.root = root
         self.split = mode
         self.transform = transform
         self.target_transform = target_transform
         self.rng = random.Random(seed)
         self.categories = ['Brain', 'ChannelNoise', 'Eye', 'Heart', 'LineNoise', 'Muscle', 'Other']
+
         self.base_dir = os.path.join(self.root, self.split)
         self.brain_dir = os.path.join(self.base_dir, 'Brain')
         if not os.path.isdir(self.brain_dir):
             raise FileNotFoundError(f'Brain directory not found: {self.brain_dir}')
-        inline = data_cfg.get('splits') or cfg.get('splits')
-        if isinstance(inline, dict) and mode in inline:
-            self.files: List[str] = list(inline[mode])
+        if files is not None:
+            self.files: List[str] = files
         else:
             self.files = sorted(os.listdir(self.brain_dir))
 
@@ -420,18 +415,14 @@ class GenEEGDataset(Dataset):
     ```
     """
 
-    def __init__(self, *, config: Dict, mode: str='train', transform: Optional[Callable[[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]]]=None, target_transform: Optional[Callable[[torch.Tensor], torch.Tensor]]=None, seed: Optional[int]=None) -> None:
+    def __init__(self, *, C: int, T: int, sample_rate: float, length: int, spec_attr: Dict, spec_target: Dict, mode: str = 'train', transform: Optional[Callable[[torch.Tensor, torch.Tensor], Tuple[torch.Tensor, torch.Tensor]]] = None, target_transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None, seed: Optional[int] = None) -> None:
         super().__init__()
-        cfg = config
-        data_cfg = cfg.get('data', cfg)
-        gen_cfg = data_cfg.get('splits') or cfg.get('splits') or {}
-        split_cfg: Dict = gen_cfg.get(mode, {}) if isinstance(gen_cfg, dict) else {}
-        self.C = int(split_cfg.get('C', 30))
-        self.T = int(split_cfg.get('T', 1024))
-        self.sample_rate = float(split_cfg.get('sample_rate', 256.0))
-        self.length = int(split_cfg.get('length', 1000))
-        self.spec_target: Dict = {'mode': split_cfg.get('target', {}).get('mode', 'sine'), 'noise_std': float(split_cfg.get('target', {}).get('noise_std', 0.0)), 'num_components': int(split_cfg.get('target', {}).get('num_components', 3))}
-        self.spec_attr: Dict = {'mode': split_cfg.get('attr', {}).get('mode', 'mixed'), 'noise_std': float(split_cfg.get('attr', {}).get('noise_std', 0.1)), 'num_components': int(split_cfg.get('attr', {}).get('num_components', 3))}
+        self.C = C
+        self.T = T
+        self.sample_rate = sample_rate
+        self.length = length
+        self.spec_target = spec_target
+        self.spec_attr = spec_attr
         self.transform = transform
         self.target_transform = target_transform
         self.mode = mode
@@ -844,8 +835,31 @@ def build_dataset_from_config(*, cfg: Dict, mode: str='train', transform: Option
     data_cfg = cfg.get('data', cfg)
     root = data_cfg.get('root')
     if isinstance(root, str):
-        base_dir = os.path.join(root, mode, 'Brain')
-        if os.path.isdir(base_dir):
-            return EEGDataset(config=cfg, mode=mode, transform=transform, target_transform=target_transform, seed=seed)
-    return GenEEGDataset(config=cfg, mode=mode, transform=transform, target_transform=target_transform, seed=seed)
-__all__ = ['EEGDataset', 'GenEEGDataset', 'build_dataset_from_config']
+        brain_dir = os.path.join(root, mode, 'Brain')
+        if os.path.isdir(brain_dir):
+            inline = data_cfg.get('splits') or cfg.get('splits')
+            files = None
+            if isinstance(inline, dict) and mode in inline:
+                files = list(inline[mode])
+            return EEGDataset(root=root, mode=mode, files=files, transform=transform, target_transform=target_transform, seed=seed)
+
+    gen_cfg = data_cfg.get('splits') or cfg.get('splits') or {}
+    split_cfg: Dict = gen_cfg.get(mode, {}) if isinstance(gen_cfg, dict) else {}
+    C = int(split_cfg.get('C', 30))
+    T = int(split_cfg.get('T', 1024))
+    sample_rate = float(split_cfg.get('sample_rate', 256.0))
+    length = int(split_cfg.get('length', 1000))
+    spec_target: Dict = {'mode': split_cfg.get('target', {}).get('mode', 'sine'), 'noise_std': float(split_cfg.get('target', {}).get('noise_std', 0.0)), 'num_components': int(split_cfg.get('target', {}).get('num_components', 3))}
+    spec_attr: Dict = {'mode': split_cfg.get('attr', {}).get('mode', 'mixed'), 'noise_std': float(split_cfg.get('attr', {}).get('noise_std', 0.1)), 'num_components': int(split_cfg.get('attr', {}).get('num_components', 3))}
+    
+    return GenEEGDataset(
+        C=C, T=T, sample_rate=sample_rate, length=length, spec_attr=spec_attr, spec_target=spec_target,
+        mode=mode, transform=transform, target_transform=target_transform, seed=seed
+    )
+
+
+__all__ = [
+    'EEGDataset', 
+    'GenEEGDataset',
+    'build_dataset_from_config'
+]

@@ -1,13 +1,9 @@
 from __future__ import annotations
 'Training utilities: Noam learning-rate schedule and helpers.\n\nThis module provides a drop-in replacement for the original NoamOpt\nwrapper used in the codebase, plus a LambdaLR-compatible helper.\n'
-from typing import Optional, Callable
+from typing import Optional
 import torch
 
 class Noam:
-    """
-    No docstring provided.
-    """
-
     def __init__(self, d_model: int, factor: float, warmup: int, optimizer: torch.optim.Optimizer):
         self.optimizer = optimizer
         self.d_model = float(d_model)
@@ -18,23 +14,14 @@ class Noam:
 
     @property
     def lr(self) -> float:
-        """
-        No docstring provided.
-        """
         return self._lr
 
     def rate(self, step: Optional[int]=None) -> float:
-        """
-        No docstring provided.
-        """
         s = self._step if step is None else int(step)
         s = max(1, s)
         return self.factor * self.d_model ** (-0.5) * min(s ** (-0.5), s * self.warmup ** (-1.5))
 
     def step(self) -> None:
-        """
-        No docstring provided.
-        """
         self._step += 1
         lr = self.rate()
         for g in self.optimizer.param_groups:
@@ -43,21 +30,12 @@ class Noam:
         self.optimizer.step()
 
     def zero_grad(self, set_to_none: bool=False) -> None:
-        """
-        No docstring provided.
-        """
         self.optimizer.zero_grad(set_to_none=set_to_none)
 
     def state_dict(self) -> dict:
-        """
-        No docstring provided.
-        """
         return {'d_model': self.d_model, 'factor': self.factor, 'warmup': self.warmup, '_step': self._step, '_lr': self._lr, 'optimizer': self.optimizer.state_dict()}
 
     def load_state_dict(self, state: dict) -> None:
-        """
-        No docstring provided.
-        """
         self.d_model = float(state['d_model'])
         self.factor = float(state['factor'])
         self.warmup = int(state['warmup'])
@@ -65,23 +43,7 @@ class Noam:
         self._lr = float(state['_lr'])
         self.optimizer.load_state_dict(state['optimizer'])
 
-def make_noam_lambda(model_size: int, factor: float, warmup: int) -> Callable[[int], float]:
-    """
-    No docstring provided.
-    """
-    model_size = int(model_size)
-    factor = float(factor)
-    warmup = int(warmup)
-
-    def _fn(step: int) -> float:
-        step = max(1, int(step))
-        return factor * (model_size ** (-0.5) * min(step ** (-0.5), step * warmup ** (-1.5)))
-    return _fn
-
 def _infer_d_model(model: torch.nn.Module) -> int:
-    """
-    No docstring provided.
-    """
     if hasattr(model, 'embedding_size'):
         return int(getattr(model, 'embedding_size'))
     if hasattr(model, 'd_model'):
@@ -99,9 +61,6 @@ def _infer_d_model(model: torch.nn.Module) -> int:
     return 128
 
 def build_noam_from_config(cfg: dict, *, model: torch.nn.Module, optimizer: Optional[torch.optim.Optimizer]=None) -> Noam:
-    """
-    No docstring provided.
-    """
     train_cfg = cfg.get('train', {}) if isinstance(cfg, dict) else {}
     opt_cfg = train_cfg.get('optimizer', {}) if isinstance(train_cfg, dict) else {}
     sch_cfg = train_cfg.get('scheduler', {}) if isinstance(train_cfg, dict) else {}

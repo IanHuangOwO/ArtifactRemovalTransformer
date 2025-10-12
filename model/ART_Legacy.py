@@ -180,7 +180,14 @@ def build_model_from_config(cfg: dict) -> ArtifactRemovalTransformer:
     recon_log_softmax = bool(m.get('recon_log_softmax', False))
     recon_zscore = m.get('recon_zscore', None)
     return ArtifactRemovalTransformer(in_channels=in_channels, out_channels=out_channels, embedding_size=embedding_size, feedforward_size=feedforward_size, num_encoder_layers=num_encoder_layers, num_decoder_layers=num_decoder_layers, num_heads=num_heads, dropout=dropout, max_len=max_len, pos_mode=pos_mode, recon_log_softmax=recon_log_softmax, recon_zscore=recon_zscore)
-__all__ = ['ArtifactRemovalTransformer', 'build_model_from_config']
+
+
+__all__ = [
+    'ArtifactRemovalTransformer', 
+    'build_model_from_config'
+]
+
+
 if __name__ == '__main__':
 
     def export_default_onnx(out_path: str='ArtifactRemovalTransformer.onnx') -> None:

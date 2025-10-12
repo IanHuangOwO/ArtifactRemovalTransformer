@@ -294,4 +294,8 @@ def gen_eeg(C: int=32, T: int=1024, *, sample_rate: float=256.0, mode: str='mixe
     if mode in {'noise', 'mixed'}:
         x += rng.normal(loc=0.0, scale=noise_std, size=(C, T)).astype(np.float32)
     return x
-__all__ = ['read_eeg', 'gen_eeg']
+
+__all__ = [
+    'read_eeg', 
+    'gen_eeg'
+]

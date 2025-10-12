@@ -114,25 +114,16 @@ class MultiHeadAttention(nn.Module):
         self.drop = nn.Dropout(dropout)
 
     def _split_heads(self, x: Tensor) -> Tensor:
-        """
-        No docstring provided.
-        """
         (b, s, _) = x.shape
         x = x.view(b, s, self.num_heads, self.depth)
         return x.permute(0, 2, 1, 3)
 
     def _merge_heads(self, x: Tensor) -> Tensor:
-        """
-        No docstring provided.
-        """
         (b, h, s, d) = x.shape
         x = x.permute(0, 2, 1, 3).contiguous()
         return x.view(b, s, h * d)
 
     def forward(self, q: Tensor, k: Tensor, v: Tensor, attn_mask: Optional[Tensor]=None) -> Tensor:
-        """
-        No docstring provided.
-        """
         q = self._split_heads(self.wq(q))
         k = self._split_heads(self.wk(k))
         v = self._split_heads(self.wv(v))
@@ -146,10 +137,6 @@ class MultiHeadAttention(nn.Module):
         return out
 
 class FeedForward(nn.Module):
-    """
-    No docstring provided.
-    """
-
     def __init__(self, d_model: int, d_ff: int, dropout: float=0.0, activation: str | nn.Module='relu') -> None:
         super().__init__()
         if isinstance(activation, str):
@@ -168,8 +155,13 @@ class FeedForward(nn.Module):
         self.net = nn.Sequential(nn.Linear(d_model, d_ff), act_layer, nn.Dropout(dropout), nn.Linear(d_ff, d_model), nn.Dropout(dropout))
 
     def forward(self, x: Tensor) -> Tensor:
-        """
-        No docstring provided.
-        """
         return self.net(x)
-__all__ = ['PositionalEmbedding', 'ScaledDotProductAttention', 'MultiHeadAttention', 'FeedForward', 'ExpandConv1x1']
+    
+
+__all__ = [
+    'PositionalEmbedding', 
+    'ScaledDotProductAttention', 
+    'MultiHeadAttention', 
+    'FeedForward', 
+    'ExpandConv1x1'
+]

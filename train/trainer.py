@@ -8,11 +8,7 @@ from torch.utils.data import DataLoader
 from torch import nn
 
 class Trainer:
-    """
-    No docstring provided.
-    """
-
-    def __init__(self, *, cfg: dict, save_dir: Optional[str]=None, resume: bool=False, resume_path: Optional[str]=None, model: nn.Module, opt, train_loader: Optional[DataLoader]=None, val_loader: Optional[DataLoader]=None, test_loader: Optional[DataLoader]=None, loss_comp: Optional[LossComputer]=None, metrics_comp: Optional[MetricsComputer]=None) -> None:
+    def __init__(self, *, cfg: dict, save_dir: Optional[str]=None, resume: bool=False, resume_path: Optional[str]=None, model: nn.Module, opt, train_loader: Optional[DataLoader]=None, val_loader: Optional[DataLoader]=None, test_loader: Optional[DataLoader]=None, loss_comp: None, metrics_comp: None) -> None:
         self.cfg = cfg
         device_str = self.cfg.get('device') or 'cuda' if torch.cuda.is_available() else 'cpu'
         self.device = torch.device(device_str)
@@ -29,9 +25,6 @@ class Trainer:
             self._resume(resume_path)
 
     def fit(self, epochs: Optional[int]=None) -> None:
-        """
-        No docstring provided.
-        """
         if epochs is None:
             epochs = int(self.cfg.get('train', {}).get('epochs', 60))
         for epoch in range(self.start_epoch, epochs):
@@ -52,9 +45,6 @@ class Trainer:
                 self._save_checkpoint(state, filename='best.pth')
 
     def _run_epoch(self, loader: DataLoader, *, training: bool) -> float:
-        """
-        No docstring provided.
-        """
         self.model.train(training)
         total_loss = 0.0
         total_tokens = 0
@@ -95,9 +85,6 @@ class Trainer:
         return float(total_loss / max(1, total_tokens))
 
     def _resume(self, ckpt_path: Optional[str]) -> None:
-        """
-        No docstring provided.
-        """
         ckpt = ckpt_path
         tr = self.cfg.get('train', {}) if isinstance(self.cfg, dict) else {}
         if ckpt is None and isinstance(tr, dict) and tr.get('resume'):
@@ -120,9 +107,6 @@ class Trainer:
         print(f'[Trainer] Resumed from {ckpt} at epoch {self.start_epoch}')
 
     def _current_lr(self) -> float:
-        """
-        No docstring provided.
-        """
         if hasattr(self.opt, 'rate'):
             try:
                 return float(self.opt.rate())
@@ -133,9 +117,6 @@ class Trainer:
         return 0.0
 
     def _save_checkpoint(self, state: dict, filename: str='checkpoint.pth') -> None:
-        """
-        No docstring provided.
-        """
         try:
             path = os.path.join(self.save_dir, filename)
             torch.save(state, path)

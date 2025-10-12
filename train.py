@@ -44,12 +44,16 @@ def main() -> None:
     parser.add_argument('--epochs', type=int, default=None, help='Override number of epochs from config')
     parser.add_argument('--seed', type=int, default=42, help='Random seed for dataset generation/shuffling')
     args = parser.parse_args()
+    
     cfg = load_config(args.config)
-    (train_loader, val_loader, test_loader) = build_loaders(cfg=cfg, seed=args.seed)
-    model = build_model_from_config(cfg=cfg)
-    opt = build_noam_from_config(cfg=cfg, model=model)
+    
     cfg_train = cfg.get('train', {}) if isinstance(cfg, dict) else {}
     save_dir = args.save_dir or cfg_train.get('save_dir')
+    
+    (train_loader, val_loader, test_loader) = build_loaders(cfg=cfg, seed=args.seed)
+    
+    model = build_model_from_config(cfg=cfg)
+    opt = build_noam_from_config(cfg=cfg, model=model)
     loss_comp = build_loss_from_config(cfg=cfg)
     metrics_comp = build_metrics_from_config(cfg=cfg)
     trainer = Trainer(cfg=cfg, save_dir=save_dir, model=model, opt=opt, train_loader=train_loader, val_loader=val_loader, test_loader=test_loader, loss_comp=loss_comp, metrics_comp=metrics_comp)
