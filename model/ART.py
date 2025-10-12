@@ -1,174 +1,213 @@
 from typing import Optional
-
 import torch
 from torch import nn, Tensor
 import torch.nn.functional as F
-
 try:
-    from .ART_blocks import (
-        ExpandConv1x1,
-        PositionalEmbedding,
-        MultiHeadAttention,
-        FeedForward,
-    )
+    from .ART_blocks import ExpandConv1x1, PositionalEmbedding, MultiHeadAttention, FeedForward
 except ImportError:
-    from ART_blocks import (
-        ExpandConv1x1,
-        PositionalEmbedding,
-        MultiHeadAttention,
-        FeedForward,
-    )
+    from ART_blocks import ExpandConv1x1, PositionalEmbedding, MultiHeadAttention, FeedForward
 
 class TransformerEncoderBlock(nn.Module):
-    def __init__(
-        self,
-        d_model: int,
-        num_heads: int,
-        d_ff: int,
-        dropout: float = 0.0,
-        attn_dropout: float = 0.0,
-    ) -> None:
+    """
+    No docstring provided.
+    """
+
+    def __init__(self, d_model: int, num_heads: int, d_ff: int, dropout: float=0.0, attn_dropout: float=0.0) -> None:
         super().__init__()
         self.mha = MultiHeadAttention(d_model, num_heads, dropout=attn_dropout)
         self.drop1 = nn.Dropout(dropout)
-        self.ln1 = nn.LayerNorm(d_model, eps=1e-5)
-
+        self.ln1 = nn.LayerNorm(d_model, eps=1e-05)
         self.ffn = FeedForward(d_model, d_ff, dropout=dropout)
         self.drop2 = nn.Dropout(dropout)
-        self.ln2 = nn.LayerNorm(d_model, eps=1e-5)
+        self.ln2 = nn.LayerNorm(d_model, eps=1e-05)
 
-    def forward(self, x: Tensor, attn_mask: Optional[Tensor] = None) -> Tensor:
+    def forward(self, x: Tensor, attn_mask: Optional[Tensor]=None) -> Tensor:
+        """
+        No docstring provided.
+        """
         h = self.mha(x, x, x, attn_mask=attn_mask)
         x = self.ln1(x + self.drop1(h))
-        
         h = self.ffn(x)
         x = self.ln2(x + self.drop2(h))
         return x
 
-
 class TransformerEncoder(nn.Module):
-    """Stack of encoder blocks with final LayerNorm.
-
-    Args:
-        d_model, num_layers, num_heads, d_ff, dropout, attn_dropout: see blocks.
     """
-    def __init__(
-        self,
-        d_model: int,
-        num_layers: int,
-        num_heads: int,
-        d_ff: int,
-        dropout: float = 0.0,
-        attn_dropout: float = 0.0,
-    ) -> None:
-        super().__init__()
-        self.layers = nn.ModuleList(
-            [
-                TransformerEncoderBlock(
-                    d_model=d_model,
-                    num_heads=num_heads,
-                    d_ff=d_ff,
-                    dropout=dropout,
-                    attn_dropout=attn_dropout,
-                )
-                for _ in range(num_layers)
-            ]
-        )
-        self.norm = nn.LayerNorm(d_model, eps=1e-5)
+    No docstring provided.
+    """
 
-    def forward(self, x: Tensor, attn_mask: Optional[Tensor] = None) -> Tensor:
+    def __init__(self, d_model: int, num_layers: int, num_heads: int, d_ff: int, dropout: float=0.0, attn_dropout: float=0.0) -> None:
+        super().__init__()
+        self.layers = nn.ModuleList([TransformerEncoderBlock(d_model=d_model, num_heads=num_heads, d_ff=d_ff, dropout=dropout, attn_dropout=attn_dropout) for _ in range(num_layers)])
+        self.norm = nn.LayerNorm(d_model, eps=1e-05)
+
+    def forward(self, x: Tensor, attn_mask: Optional[Tensor]=None) -> Tensor:
+        """
+        No docstring provided.
+        """
         for layer in self.layers:
             x = layer(x, attn_mask=attn_mask)
         return self.norm(x)
 
-
 class TransformerDecoderBlock(nn.Module):
-    def __init__(
-        self,
-        d_model: int,
-        num_heads: int,
-        d_ff: int,
-        dropout: float = 0.0,
-        attn_dropout: float = 0.0,
-    ) -> None:
-        super().__init__()
-        self.ln1 = nn.LayerNorm(d_model, eps=1e-5)
-        self.self_mha = MultiHeadAttention(d_model, num_heads, dropout=attn_dropout)
-        self.drop1 = nn.Dropout(dropout)
+    """
+    No docstring provided.
+    """
 
-        self.ln2 = nn.LayerNorm(d_model, eps=1e-5)
+    def __init__(self, d_model: int, num_heads: int, d_ff: int, dropout: float=0.0, attn_dropout: float=0.0) -> None:
+        super().__init__()
+        self.ln1 = nn.LayerNorm(d_model, eps=1e-05)
         self.cross_mha = MultiHeadAttention(d_model, num_heads, dropout=attn_dropout)
+        self.drop1 = nn.Dropout(dropout)
+        self.ln2 = nn.LayerNorm(d_model, eps=1e-05)
+        self.ffn = FeedForward(d_model, d_ff, dropout=dropout)
         self.drop2 = nn.Dropout(dropout)
 
-        self.ln3 = nn.LayerNorm(d_model, eps=1e-5)
-        self.ffn = FeedForward(d_model, d_ff, dropout=dropout)
-        self.drop3 = nn.Dropout(dropout)
+    def forward(self, x: Tensor, memory: Tensor, self_attn_mask: Optional[Tensor]=None) -> Tensor:
+        """
+        Summary:
+        Performs cross-attention and feed-forward transformation with residual connections and layer normalization.
 
-    def forward(
-        self,
-        x: Tensor,
-        memory: Tensor,
-        self_attn_mask: Optional[Tensor] = None,
-        cross_attn_mask: Optional[Tensor] = None,
-    ) -> Tensor:
-        h = self.self_mha(x, x, x, attn_mask=self_attn_mask)
+        Description:
+        WHY: Enables complex contextual representation learning by integrating cross-attention mechanisms with non-linear transformations.
+
+        WHEN: Used in sequence-to-sequence models requiring dynamic context integration and feature refinement.
+
+        WHERE: Serves as a fundamental building block in transformer decoder architectures, facilitating information flow between encoder and decoder representations.
+
+        HOW: Applies multi-head cross-attention, residual connections, dropout, and layer normalization in a structured sequence to transform input representations.
+
+        Args:
+            x (Tensor): Input tensor representing decoder sequence embeddings.
+            memory (Tensor): Encoder-side context tensor providing cross-attention information.
+            self_attn_mask (Optional[Tensor], optional): Mask tensor to prevent attending to certain positions. Defaults to None.
+
+        Returns:
+            Tensor: Transformed output tensor after cross-attention and feed-forward processing.
+
+        Examples:
+            ```python
+            # Typical usage in transformer decoder block
+            decoder_block = TransformerDecoderBlock(
+                d_model=512, 
+                num_heads=8, 
+                d_ff=2048, 
+                dropout=0.1
+            )
+
+            # Forward pass with optional masking
+            output = decoder_block(
+                x=decoder_input, 
+                memory=encoder_output, 
+                self_attn_mask=subsequent_mask
+            )
+            ```
+        """
+        h = self.cross_mha(x, memory, memory, attn_mask=self_attn_mask)
         x = self.ln1(x + self.drop1(h))
-
-        h = self.cross_mha(x, memory, memory, attn_mask=cross_attn_mask)
-        x = self.ln2(x + self.drop2(h))
-
         h = self.ffn(x)
-        x = self.ln3(x + self.drop3(h))
+        x = self.ln2(x + self.drop2(h))
         return x
 
-
 class TransformerDecoder(nn.Module):
-    def __init__(
-        self,
-        d_model: int,
-        num_layers: int,
-        num_heads: int,
-        d_ff: int,
-        dropout: float = 0.0,
-        attn_dropout: float = 0.0,
-    ) -> None:
+    """
+    No docstring provided.
+    """
+
+    def __init__(self, d_model: int, num_layers: int, num_heads: int, d_ff: int, dropout: float=0.0, attn_dropout: float=0.0) -> None:
         super().__init__()
-        self.layers = nn.ModuleList(
-            [
-                TransformerDecoderBlock(
-                    d_model=d_model,
-                    num_heads=num_heads,
-                    d_ff=d_ff,
-                    dropout=dropout,
-                    attn_dropout=attn_dropout,
-                )
-                for _ in range(num_layers)
-            ]
-        )
+        self.layers = nn.ModuleList([TransformerDecoderBlock(d_model=d_model, num_heads=num_heads, d_ff=d_ff, dropout=dropout, attn_dropout=attn_dropout) for _ in range(num_layers)])
         self.norm = nn.LayerNorm(d_model)
 
-    def forward(
-        self,
-        x: Tensor,
-        memory: Tensor,
-        self_attn_mask: Optional[Tensor] = None,
-        cross_attn_mask: Optional[Tensor] = None,
-    ) -> Tensor:
+    def forward(self, x: Tensor, memory: Tensor, self_attn_mask: Optional[Tensor]=None) -> Tensor:
+        """
+        Summary:
+        Sequentially processes input through multiple transformer decoder layers with optional self-attention masking.
+
+        Description:
+        WHY: Enables hierarchical feature transformation and contextual representation learning in sequence-to-sequence models.
+
+        WHEN: Used during inference or training of transformer-based architectures requiring cross-attention between decoder and encoder representations.
+
+        WHERE: Serves as the core forward pass mechanism in transformer decoder networks, facilitating complex sequence generation tasks.
+
+        HOW: Iteratively applies each transformer decoder block to the input, incorporating memory (encoder) context and optional self-attention masking, followed by layer normalization.
+
+        Args:
+            x (Tensor): Input tensor representing decoder sequence embeddings.
+            memory (Tensor): Encoder-side context tensor providing cross-attention information.
+            self_attn_mask (Optional[Tensor], optional): Mask tensor to prevent attending to certain positions. Defaults to None.
+
+        Returns:
+            Tensor: Transformed and normalized output tensor after passing through all decoder layers.
+
+        Examples:
+            ```python
+            # Typical usage in sequence generation
+            decoder = TransformerDecoder(
+                d_model=512, 
+                num_layers=6, 
+                num_heads=8, 
+                d_ff=2048
+            )
+
+            # Forward pass with optional masking
+            output = decoder(
+                x=decoder_input, 
+                memory=encoder_output, 
+                self_attn_mask=subsequent_mask
+            )
+            ```
+        """
         for layer in self.layers:
-            x = layer(x, memory, self_attn_mask=self_attn_mask, cross_attn_mask=cross_attn_mask)
+            x = layer(x, memory, self_attn_mask=self_attn_mask)
         return self.norm(x)
 
-
 class Reconstructor(nn.Module):
-    def __init__(
-        self,
-        d_model: int,
-        out_channels: int,
-        *,
-        log_softmax: bool = False,
-        zscore: str | None = None,
-        eps: float = 1e-10,
-    ) -> None:
+    """
+    Summary:
+    Flexible neural network module for tensor transformation and normalization with configurable projection and scaling strategies.
+
+    Description:
+    WHY: Provides a generalized tensor projection and normalization layer that can adapt to different neural network architectures and preprocessing requirements.
+
+    WHEN: Use in neural network architectures requiring dynamic feature transformation, dimensionality reduction, or statistical normalization of tensor representations.
+
+    WHERE: Serves as a versatile component in machine learning pipelines, particularly in deep learning models dealing with tensor manipulations and feature engineering.
+
+    HOW: Implements a linear projection layer with optional log-softmax activation and z-score normalization, allowing fine-grained control over tensor transformations.
+
+    Parameters:
+        d_model (int): Input tensor dimensionality to be projected.
+        out_channels (int): Desired output dimensionality after projection.
+        log_softmax (bool, optional): Flag to apply log-softmax transformation. Defaults to False.
+        zscore (str | None, optional): Normalization mode - 'batch', 'time', or None. Defaults to None.
+        eps (float, optional): Small epsilon value to prevent division by zero. Defaults to 1e-10.
+
+    Attributes:
+        proj (nn.Linear): Linear projection layer transforming input tensor.
+        use_log_softmax (bool): Determines whether log-softmax is applied.
+        zscore (str | None): Specifies z-score normalization strategy.
+        eps (float): Numerical stability constant for normalization.
+
+    Examples:
+        ```python
+        # Basic usage: simple linear projection
+        reconstructor = Reconstructor(d_model=128, out_channels=64)
+        output = reconstructor(input_tensor)
+
+        # Advanced usage: with log-softmax and batch normalization
+        reconstructor = Reconstructor(
+            d_model=128, 
+            out_channels=64, 
+            log_softmax=True, 
+            zscore='batch'
+        )
+        normalized_output = reconstructor(input_tensor)
+        ```
+    """
+
+    def __init__(self, d_model: int, out_channels: int, *, log_softmax: bool=False, zscore: str | None=None, eps: float=1e-10) -> None:
         super().__init__()
         self.proj = nn.Linear(d_model, out_channels)
         self.use_log_softmax = log_softmax
@@ -176,198 +215,120 @@ class Reconstructor(nn.Module):
         self.eps = eps
 
     def forward(self, x: Tensor) -> Tensor:
-        # x: (B, T, d_model) -> (B, T, C)
+        """
+        Summary:
+        Transforms input tensor through linear projection with optional log-softmax and z-score normalization.
+
+        Description:
+        WHY: Provides a flexible tensor transformation method with configurable normalization strategies for neural network outputs.
+
+        WHEN: Used during neural network forward passes to project and normalize tensor representations.
+
+        WHERE: Serves as a forward method in a neural network module, typically for dimensionality reduction or feature transformation.
+
+        HOW: Applies a linear projection, optionally applies log-softmax, and performs z-score normalization based on specified mode.
+
+        Args:
+            x (Tensor): Input tensor to be transformed.
+
+        Returns:
+            Tensor: Transformed tensor after projection, optional log-softmax, and z-score normalization.
+
+        Raises:
+            ValueError: If an unsupported z-score normalization mode is specified.
+
+        Examples:
+            ```python
+            # Default behavior: linear projection only
+            reconstructor = Reconstructor(d_model=128, out_channels=64)
+            output = reconstructor(input_tensor)
+
+            # With log-softmax
+            reconstructor = Reconstructor(d_model=128, out_channels=64, log_softmax=True)
+            output = reconstructor(input_tensor)
+
+            # With batch-wise z-score normalization
+            reconstructor = Reconstructor(d_model=128, out_channels=64, zscore='batch')
+            output = reconstructor(input_tensor)
+            ```
+        """
         y = self.proj(x)
         if self.use_log_softmax:
             y = F.log_softmax(y, dim=-1)
         if self.zscore is None:
             return y
-        if self.zscore == "batch":
-            # Normalize across batch dimension, preserving (T, C) statistics
+        if self.zscore == 'batch':
             mean = y.mean(dim=0, keepdim=True)
             std = y.std(dim=0, keepdim=True)
-        elif self.zscore == "time":
-            # Per-sample z-score across time axis
+        elif self.zscore == 'time':
             mean = y.mean(dim=1, keepdim=True)
             std = y.std(dim=1, keepdim=True)
         else:
-            raise ValueError(f"Unsupported zscore mode: {self.zscore}")
+            raise ValueError(f'Unsupported zscore mode: {self.zscore}')
         return (y - mean) / (std + self.eps)
 
 class ArtifactRemovalTransformer(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        embedding_size: int = 128,
-        num_encoder_layers: int = 6,
-        num_decoder_layers: int = 6,
-        num_heads: int = 8,
-        feedforward_size: int = 2048,
-        dropout: float = 0.1,
-        max_len: int = 2048,
-        pos_mode: str = "sinusoidal",
-        recon_log_softmax: bool = False,
-        recon_zscore: str | None = None,
-    ) -> None:
+    """
+    No docstring provided.
+    """
+
+    def __init__(self, in_channels: int, out_channels: int, embedding_size: int=128, num_encoder_layers: int=6, num_decoder_layers: int=6, num_heads: int=8, feedforward_size: int=2048, dropout: float=0.1, max_len: int=2048, pos_mode: str='sinusoidal', recon_log_softmax: bool=False, recon_zscore: str | None=None) -> None:
         super().__init__()
-        
-        self.src_embed = nn.Sequential(
-            ExpandConv1x1(in_channels, embedding_size),
-            PositionalEmbedding(max_len=max_len, d_model=embedding_size, mode=pos_mode),
-            nn.Dropout(dropout),
-        )
+        self.embedding = nn.Sequential(ExpandConv1x1(in_channels, embedding_size), PositionalEmbedding(max_len=max_len, d_model=embedding_size, mode=pos_mode), nn.Dropout(dropout))
+        self.encoder = TransformerEncoder(d_model=embedding_size, num_layers=num_encoder_layers, num_heads=num_heads, d_ff=feedforward_size, dropout=dropout, attn_dropout=dropout)
+        self.decoder = TransformerDecoder(d_model=embedding_size, num_layers=num_decoder_layers, num_heads=num_heads, d_ff=feedforward_size, dropout=dropout, attn_dropout=dropout)
+        self.reconstructor = Reconstructor(d_model=embedding_size, out_channels=out_channels, log_softmax=recon_log_softmax, zscore=recon_zscore)
 
-        self.encoder = TransformerEncoder(
-            d_model=embedding_size,
-            num_layers=num_encoder_layers,
-            num_heads=num_heads,
-            d_ff=feedforward_size,
-            dropout=dropout,
-            attn_dropout=dropout,
-        )
-        
-        self.tgt_embed = nn.Sequential(
-            ExpandConv1x1(out_channels, embedding_size),
-            PositionalEmbedding(max_len=max_len, d_model=embedding_size, mode=pos_mode),
-            nn.Dropout(dropout),
-        )
-        self.decoder = TransformerDecoder(
-            d_model=embedding_size,
-            num_layers=num_decoder_layers,
-            num_heads=num_heads,
-            d_ff=feedforward_size,
-            dropout=dropout,
-            attn_dropout=dropout,
-        )
-        
-        self.reconstructor = Reconstructor(
-            d_model=embedding_size,
-            out_channels=out_channels,
-            log_softmax=recon_log_softmax,
-            zscore=recon_zscore,
-        )
-
-    def forward(
-        self,
-        src: Tensor,
-        tgt: Optional[Tensor] = None,
-        src_mask: Optional[Tensor] = None,
-        tgt_mask: Optional[Tensor] = None,
-    ) -> Tensor:
-        src_x = self.src_embed(src)
-        
+    def forward(self, src: Tensor, tgt: Optional[Tensor]=None, src_mask: Optional[Tensor]=None, tgt_mask: Optional[Tensor]=None) -> Tensor:
+        """
+        No docstring provided.
+        """
         enc_attn_mask = None
         if src_mask is not None:
             if src_mask.dtype != torch.bool:
                 src_mask = src_mask.to(torch.bool)
-            enc_attn_mask = (~src_mask).unsqueeze(1).unsqueeze(2)  # (B, 1, 1, T)
-
-        memory = self.encoder(src_x, attn_mask=enc_attn_mask)
-        
-        tgt_x = self.tgt_embed(tgt)
-
+            enc_attn_mask = (~src_mask).unsqueeze(1).unsqueeze(2)
+        src_x = self.embedding(src)
+        memory_src = self.encoder(src_x, attn_mask=enc_attn_mask)
         dec_self_mask = None
-        dec_cross_mask = enc_attn_mask
         if tgt_mask is not None:
             if tgt_mask.dtype != torch.bool:
                 tgt_mask = tgt_mask.to(torch.bool)
-            dec_self_mask = (~tgt_mask).unsqueeze(1)  # (B, 1, Q, K)
-
-        out = self.decoder(tgt_x, memory, dec_self_mask, dec_cross_mask)
-        
+            dec_self_mask = (~tgt_mask).unsqueeze(1)
+        tgt_x = self.embedding(tgt)
+        memory_tgt = self.encoder(tgt_x, attn_mask=dec_self_mask)
+        out = self.decoder(memory_tgt, memory_src, enc_attn_mask)
         return self.reconstructor(out)
 
-
 def build_model_from_config(cfg: dict) -> ArtifactRemovalTransformer:
-    """Build ArtifactRemovalTransformer from a loaded config dict.
-
-    Accepts either the full config with a top-level "model" section or a
-    dict that is itself the model section.
     """
-    m = cfg.get("model", cfg) if isinstance(cfg, dict) else {}
+    No docstring provided.
+    """
+    m = cfg.get('model', cfg) if isinstance(cfg, dict) else {}
+    in_channels = int(m.get('in_channels', 30))
+    out_channels = int(m.get('out_channels', 30))
+    embedding_size = int(m.get('embedding_size', 128))
+    feedforward_size = int(m.get('feedforward_size', 2048))
+    num_layers = int(m.get('num_layers', 6))
+    num_encoder_layers = int(m.get('num_encoder_layers', num_layers))
+    num_decoder_layers = int(m.get('num_decoder_layers', num_layers))
+    num_heads = int(m.get('num_heads', 8))
+    dropout = float(m.get('dropout', 0.1))
+    max_len = int(m.get('max_len', 2048))
+    pos_mode = str(m.get('pos_mode', 'sinusoidal'))
+    recon_log_softmax = bool(m.get('recon_log_softmax', False))
+    recon_zscore = m.get('recon_zscore', None)
+    return ArtifactRemovalTransformer(in_channels=in_channels, out_channels=out_channels, embedding_size=embedding_size, feedforward_size=feedforward_size, num_encoder_layers=num_encoder_layers, num_decoder_layers=num_decoder_layers, num_heads=num_heads, dropout=dropout, max_len=max_len, pos_mode=pos_mode, recon_log_softmax=recon_log_softmax, recon_zscore=recon_zscore)
+__all__ = ['ArtifactRemovalTransformer', 'build_model_from_config']
+if __name__ == '__main__':
 
-    in_channels = int(m.get("in_channels", 30))
-    out_channels = int(m.get("out_channels", 30))
-
-    # Widths
-    embedding_size = int(m.get("embedding_size", 128))
-    feedforward_size = int(m.get("feedforward_size", 2048))
-
-    # Depths
-    num_layers = int(m.get("num_layers", 6))
-    num_encoder_layers = int(m.get("num_encoder_layers", num_layers))
-    num_decoder_layers = int(m.get("num_decoder_layers", num_layers))
-
-    # Attention/regularization
-    num_heads = int(m.get("num_heads", 8))
-    dropout = float(m.get("dropout", 0.1))
-    max_len = int(m.get("max_len", 2048))
-    pos_mode = str(m.get("pos_mode", "sinusoidal"))
-
-    # Reconstruction head options
-    recon_log_softmax = bool(m.get("recon_log_softmax", False))
-    recon_zscore = m.get("recon_zscore", None)
-
-    return ArtifactRemovalTransformer(
-        in_channels=in_channels,
-        out_channels=out_channels,
-        embedding_size=embedding_size,
-        feedforward_size=feedforward_size,
-        num_encoder_layers=num_encoder_layers,
-        num_decoder_layers=num_decoder_layers,
-        num_heads=num_heads,
-        dropout=dropout,
-        max_len=max_len,
-        pos_mode=pos_mode,
-        recon_log_softmax=recon_log_softmax,
-        recon_zscore=recon_zscore,
-    )
-
-__all__ = [
-    "ArtifactRemovalTransformer",
-    "build_model_from_config"
-]
-
-
-if __name__ == "__main__":
-    # Helper to export a default ArtifactRemovalTransformer to ONNX for Netron
-    def export_default_onnx(out_path: str = "ArtifactRemovalTransformer.onnx") -> None:
-        in_ch, out_ch = 30, 30
-        model = ArtifactRemovalTransformer(
-            in_channels=in_ch,
-            out_channels=out_ch,
-            embedding_size=128,
-            num_encoder_layers=2,
-            num_decoder_layers=2,
-            num_heads=8,
-            feedforward_size=512,
-            dropout=0.1,
-            max_len=2048,
-            pos_mode="sinusoidal",
-            recon_log_softmax=False,
-            recon_zscore=None,
-        )
+    def export_default_onnx(out_path: str='ArtifactRemovalTransformer.onnx') -> None:
+        (in_ch, out_ch) = (30, 30)
+        model = ArtifactRemovalTransformer(in_channels=in_ch, out_channels=out_ch, embedding_size=128, num_encoder_layers=2, num_decoder_layers=2, num_heads=8, feedforward_size=512, dropout=0.1, max_len=2048, pos_mode='sinusoidal', recon_log_softmax=False, recon_zscore=None)
         model.eval()
-
-        # The forward expects both src and tgt; provide dummy tensors
         T = 256
         src = torch.randn(1, in_ch, T)
         tgt = torch.randn(1, out_ch, T)
-
-        torch.onnx.export(
-            model,
-            (src, tgt),
-            out_path,
-            input_names=["src", "tgt"],
-            output_names=["y"],
-            opset_version=14,
-            dynamic_axes={
-                "src": {0: "batch", 2: "time"},
-                "tgt": {0: "batch", 2: "time"},
-                "y": {0: "batch", 2: "time"},
-            },
-        )
-        print(f"Exported ONNX to {out_path}")
-
+        torch.onnx.export(model, (src, tgt), out_path, input_names=['src', 'tgt'], output_names=['y'], opset_version=14, dynamic_axes={'src': {0: 'batch', 2: 'time'}, 'tgt': {0: 'batch', 2: 'time'}, 'y': {0: 'batch', 2: 'time'}})
+        print(f'Exported ONNX to {out_path}')
     export_default_onnx()
