@@ -6,6 +6,10 @@ from typing import Optional, Dict
 import torch
 from torch.utils.data import DataLoader
 from torch import nn
+from model import build_model_from_config
+from train.optimizer import build_noam_from_config
+from train.loss import build_loss_from_config
+from train.metrics import build_metrics_from_config
 
 class Trainer:
     def __init__(self, *, cfg: dict, save_dir: Optional[str]=None, resume: bool=False, resume_path: Optional[str]=None, model: nn.Module, opt, train_loader: Optional[DataLoader]=None, val_loader: Optional[DataLoader]=None, test_loader: Optional[DataLoader]=None, loss_comp: None, metrics_comp: None) -> None:
@@ -14,7 +18,9 @@ class Trainer:
         self.device = torch.device(device_str)
         self.model = model.to(self.device)
         self.opt = opt
-        (self.train_loader, self.val_loader, self.test_loader) = (train_loader, val_loader, test_loader)
+        self.train_loader = train_loader
+        self.val_loader = val_loader
+        self.test_loader = test_loader
         self.save_dir = save_dir or os.path.join(os.getcwd(), 'checkpoints')
         os.makedirs(self.save_dir, exist_ok=True)
         self.log_path = os.path.join(self.save_dir, 'train.log')
@@ -122,3 +128,29 @@ class Trainer:
             torch.save(state, path)
         except Exception as e:
             print(f'[Trainer] Failed to save checkpoint {filename}: {e}')
+
+def build_trainer_from_config(
+    *,
+    cfg: Dict,
+    model: nn.Module,
+    opt: object,
+    loss_comp: object,
+    metrics_comp: object,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    test_loader: DataLoader,
+    save_dir: Optional[str] = None,
+    resume: bool = False,
+    resume_path: Optional[str] = None,
+) -> Trainer:
+    """Builds a Trainer instance from a configuration dictionary, components, and data loaders."""
+
+    train_cfg = cfg.get('train', {})
+    if save_dir is None:
+        save_dir = train_cfg.get('save_dir')
+    if not resume:
+        resume = train_cfg.get('resume', False)
+    if resume_path is None:
+        resume_path = train_cfg.get('resume_path')
+
+    return Trainer(cfg=cfg, save_dir=save_dir, resume=resume, resume_path=resume_path, model=model, opt=opt, train_loader=train_loader, val_loader=val_loader, test_loader=test_loader, loss_comp=loss_comp, metrics_comp=metrics_comp)

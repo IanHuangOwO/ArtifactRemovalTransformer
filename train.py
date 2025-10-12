@@ -3,9 +3,10 @@ import argparse
 import json
 from torch.utils.data import DataLoader
 from IO import build_dataset_from_config
-from preprocess import collate_eeg_batch_channel
 from train import Trainer, build_noam_from_config, build_loss_from_config, build_metrics_from_config
 from model import build_model_from_config
+from preprocess import collate_eeg_batch_channel 
+from train import build_trainer_from_config
 
 def load_config(path: str) -> dict:
     """
@@ -47,16 +48,24 @@ def main() -> None:
     
     cfg = load_config(args.config)
     
-    cfg_train = cfg.get('train', {}) if isinstance(cfg, dict) else {}
-    save_dir = args.save_dir or cfg_train.get('save_dir')
-    
     (train_loader, val_loader, test_loader) = build_loaders(cfg=cfg, seed=args.seed)
     
     model = build_model_from_config(cfg=cfg)
     opt = build_noam_from_config(cfg=cfg, model=model)
     loss_comp = build_loss_from_config(cfg=cfg)
     metrics_comp = build_metrics_from_config(cfg=cfg)
-    trainer = Trainer(cfg=cfg, save_dir=save_dir, model=model, opt=opt, train_loader=train_loader, val_loader=val_loader, test_loader=test_loader, loss_comp=loss_comp, metrics_comp=metrics_comp)
+
+    trainer = build_trainer_from_config(
+        cfg=cfg,
+        model=model,
+        opt=opt,
+        loss_comp=loss_comp,
+        metrics_comp=metrics_comp,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        test_loader=test_loader,
+        save_dir=args.save_dir
+    )
     trainer.fit(epochs=args.epochs)
     
 if __name__ == '__main__':
